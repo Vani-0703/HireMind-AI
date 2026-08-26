@@ -1,0 +1,10 @@
+{
+  "name": "hiremind-ai-deploy",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node prepare.mjs && cd web && npm install && npm run build",
+    "start": "cd web && npm start"
+  },
+  "engines": { "node": ">=20" }
+}
