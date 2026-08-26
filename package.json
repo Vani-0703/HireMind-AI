@@ -1,10 +1,16 @@
 {
-  "name": "hiremind-ai-deploy",
+  "name": "hiremind-ai",
   "private": true,
   "version": "1.0.0",
+  "engines": {
+    "node": ">=20 <23"
+  },
   "scripts": {
     "build": "node prepare.mjs && cd web && npm install && npm run build",
-    "start": "cd web && npm start"
+    "start": "cd web && npm start",
+    "dev": "cd web && npm run dev"
   },
-  "engines": { "node": ">=20" }
+  "dependencies": {
+    "next": "^16.0.0"
+  }
 }
