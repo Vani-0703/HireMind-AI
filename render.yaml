@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: hiremind-ai-service
+    runtime: python
+    buildCommand: node prepare.mjs && pip install -r ai-service/requirements.txt
+    startCommand: cd ai-service && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: AI_MODE
+        value: demo
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        value: https://api.openai.com/v1
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
