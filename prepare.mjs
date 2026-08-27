@@ -1,7 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { gunzipSync } from 'node:zlib';
 
 const root = process.cwd();
 const bundle = join(root, 'bundle');
@@ -11,36 +10,34 @@ const parts = readdirSync(bundle)
 
 if (parts.length === 0) throw new Error('No source archive parts found in bundle/.');
 
-// Each part is a separately gzip-compressed binary chunk encoded as Base64.
-// Decode AND gunzip every part, then concatenate the resulting TAR byte chunks.
-const tarChunks = parts.map((file) => {
+// The archive was Base64-split after gzip compression. Each .b64 file is
+// therefore a slice of the SAME gzip stream. Decode each slice and concatenate
+// the bytes; do NOT gunzip individual slices.
+const compressedChunks = parts.map((file) => {
   const encoded = readFileSync(join(bundle, file), 'utf8').replace(/\s+/g, '');
-  const compressed = Buffer.from(encoded, 'base64');
-  if (compressed.length < 2 || compressed[0] !== 0x1f || compressed[1] !== 0x8b) {
-    throw new Error(`${file} is not a valid gzip member.`);
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded)) {
+    throw new Error(`${file} contains invalid Base64 characters.`);
   }
-  try {
-    return gunzipSync(compressed);
-  } catch (error) {
-    throw new Error(`Unable to decompress ${file}: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  const bytes = Buffer.from(encoded, 'base64');
+  if (!bytes.length) throw new Error(`${file} decoded to an empty chunk.`);
+  return bytes;
 });
 
-const tarPath = join(root, 'HireMind-AI-source.tar');
-writeFileSync(tarPath, Buffer.concat(tarChunks));
+const archivePath = join(root, 'HireMind-AI-source.tgz');
+writeFileSync(archivePath, Buffer.concat(compressedChunks));
 
 const web = join(root, 'web');
 if (existsSync(web)) rmSync(web, { recursive: true, force: true });
 mkdirSync(web, { recursive: true });
 
 try {
-  execFileSync('tar', ['-xf', tarPath, '--overwrite', '-C', web], { stdio: 'inherit' });
+  execFileSync('tar', ['-xzf', archivePath, '--overwrite', '-C', web], { stdio: 'inherit' });
 } catch {
-  throw new Error('Source TAR extraction failed after all archive parts were decompressed.');
+  throw new Error('Source archive extraction failed. The Base64 archive parts are corrupted or incomplete.');
 }
 
 if (!existsSync(join(web, 'package.json'))) {
   throw new Error('Extracted application does not contain web/package.json.');
 }
 
-console.log(`HireMind AI source extracted successfully from ${parts.length} compressed parts.`);
+console.log(`HireMind AI source extracted successfully from ${parts.length} archive parts.`);
